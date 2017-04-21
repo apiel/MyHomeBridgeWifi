@@ -6,6 +6,10 @@
 #include "ESP8266HTTPClient.h"
 #include "ESP8266WebServer.h"
 
+extern "C" {
+  #include <ping.h>
+}
+
 class MyHomeBridgeWifi
 {
   public:
@@ -35,8 +39,13 @@ class MyHomeBridgeWifi
 	IPAddress _gatewayIP;
 	
 	bool _checkUrlCall();
-	bool _ping();
+	void _ping();
 	void _routWifiConfig();
+	static void _ping_recv(void *opt, void *pdata);
+	static void _disconnected();
+
+	ping_option _pingOptions;
+	static byte _pingCountError;
 };
 
 #endif

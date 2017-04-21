@@ -1,7 +1,6 @@
 #include "Arduino.h"
 #include "ESP8266WiFi.h"
 #include "ESP8266HTTPClient.h"
-#include "ESP8266Ping.h"
 #include "ESP8266WebServer.h"
 #include "WiFiClient.h"
 #include "MyHomeBridgeWifi.h"
@@ -122,34 +121,62 @@ int MyHomeBridgeWifi::callUrl(String url) {
 }
 
 bool MyHomeBridgeWifi::_checkUrlCall() {
-  bool isValid = true;
-  if (millis() - _lastCheck > 60000) { // check every minute
-    _lastCheck = millis();
-    Serial.print("Call check url: ");
-    int httpCode = callUrl("http://" + _gatewayIP.toString() + "/");
-    Serial.println(httpCode);
-    isValid = httpCode == 200;
-  }
+  Serial.print("Call check url: ");
+  int httpCode = callUrl("http://" + _gatewayIP.toString() + "/");
+  Serial.println(httpCode);
 
-  return isValid;
+  return httpCode == 200;
 }
 
-bool MyHomeBridgeWifi::_ping() {
+void MyHomeBridgeWifi::_ping() {
   Serial.println("Ping");
-  return Ping.ping(_gatewayIP);
+  
+  memset(&_pingOptions, 0, sizeof(struct ping_option));
+  
+  // Repeat count (how many time send a ping message to destination)
+  _pingOptions.count = 0;
+  // Time interval between two ping (seconds??)
+  _pingOptions.coarse_time = 1;
+  // Destination machine
+  _pingOptions.ip = _gatewayIP;  
+  _pingOptions.recv_function = reinterpret_cast<ping_recv_function>(&MyHomeBridgeWifi::_ping_recv);
+  _pingOptions.sent_function = NULL;
+
+  ping_start(&_pingOptions);
 }
 
-void MyHomeBridgeWifi::check() {       
-  if (_isConnected) {
-    if (!isConnected()
-    || (checkUrlCall && !_checkUrlCall())
-    || (checkPing && !_ping())) {
-        Serial.println("\nDisconnected from Wifi, reset in 5 sec.");
-        delay(5000);
-        //connectToWifi();
-        ESP.reset();
+void MyHomeBridgeWifi::check() 
+{  
+  if (_isConnected && millis() - _lastCheck > 5000) {
+  //if (_isConnected && millis() - _lastCheck > 60000) { // check every minute
+    _lastCheck = millis();     
+    if (checkPing) _ping();
+    if (!isConnected() || (checkUrlCall && !_checkUrlCall())) {
+      MyHomeBridgeWifi::_disconnected();
     } 
   }
   
   server.handleClient();
 }
+
+void MyHomeBridgeWifi::_ping_recv(void *opt, void *pdata) 
+{
+  Serial.println("Pong");
+  ping_resp*   ping_resp = reinterpret_cast<struct ping_resp*>(pdata);
+  ping_option* ping_opt  = reinterpret_cast<struct ping_option*>(opt);
+
+  if (ping_resp->ping_err == -1) _pingCountError++;
+  else _pingCountError = 0;
+
+  if (_pingCountError > 2) _disconnected();
+}
+
+void MyHomeBridgeWifi::_disconnected()
+{
+    Serial.println("\nDisconnected from Wifi, reset in 5 sec.");
+    delay(5000);
+    //connectToWifi();
+    ESP.reset();
+}
+
+byte MyHomeBridgeWifi::_pingCountError = 0;
