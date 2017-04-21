@@ -50,6 +50,7 @@ int MyHomeBridgeWifi::callUrl(String url) {
   int httpCode = http.GET();
   if(httpCode > 0) {
         Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+		lastPayload = http.getString();
   } 
   else {
         Serial.printf("[HTTP] GET... failed, error: %d\n", httpCode);

@@ -8,6 +8,7 @@
 class MyHomeBridgeWifi
 {
   public:
+	String lastPayload;
     void init(const char* ssid, const char *passphrase);
 	void init(const char* ssid, const char *passphrase, IPAddress local_ip);
     void connect();
