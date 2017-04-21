@@ -3,17 +3,27 @@
 
 MyHomeBridgeWifi wifi;
 
+const char *APssid = "ESPapYOyo";
+const char *APpassword = "thereisnospoon";
+
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
-  IPAddress ip(192,168,0,93);
-  wifi.init(MYWIFISSID, MYWIFIPASSWORD, ip);
-  wifi.connect();
+  wifi.accessPointConfig(APssid, APpassword);
+
+  // IPAddress ip(192,168,0,93);
+  // wifi.connect(MYWIFISSID, MYWIFIPASSWORD, ip);
+
+  wifi.connect(MYWIFISSID, MYWIFIPASSWORD);
+
+  // wifi.connect("helo", "world");
+
+  // wifi.initServer();
+  // wifi.serve();
 }
 
 void loop()
 {
-  delay(3000);
   wifi.check();
 }

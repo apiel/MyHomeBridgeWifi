@@ -13,12 +13,17 @@ void MyHomeBridgeWifi::initServer(int port)
 void MyHomeBridgeWifi::_routWifiConfig()
 {
   Serial.println("_routWifiConfig.");
+  if (server.hasArg("ssid") && server.hasArg("password")
+   && (server.arg("ssid") != WiFi.SSID() || server.arg("password") != WiFi.psk())) {
+    server.send(200, "text/html", "connect to wifi...");
+    connect(server.arg("ssid").c_str(), server.arg("password").c_str());
+  }
   server.send(200, "text/html", "\
   <form>\
     <label>Wifi SSID</label><br />\
-    <input name='ssid' placeholder='SSID' /><br /><br />\
+    <input name='ssid' placeholder='SSID' value='" + WiFi.SSID() + "' /><br /><br />\
     <label>Wifi password</label><br />\
-    <input name='password' placeholder='password' /><br /><br />\
+    <input name='password' placeholder='password' value='" + WiFi.psk() + "' /><br /><br />\
     <button type='submit'>Save</button><br />\
   <form>");
 }
@@ -71,12 +76,15 @@ void MyHomeBridgeWifi::connect(const char* ssid, const char *passphrase, IPAddre
 void MyHomeBridgeWifi::connect()
 {
   WiFi.disconnect(true);
+  WiFi.softAPdisconnect();
+  _isConnected = false;
   Serial.print("Connect to WiFi: ");  
   Serial.println(_STAssid);
   WiFi.begin(_STAssid, _STApassphrase);  
 
   if (_isConnected = isConnected()) {
 	  Serial.print("\n\nConnected to wifi: ");
+    Serial.println(WiFi.SSID());
 	  Serial.println(WiFi.localIP());	  	  
     Serial.print("GatewayIP: ");
     Serial.println(WiFi.gatewayIP().toString());
@@ -146,9 +154,8 @@ void MyHomeBridgeWifi::_ping() {
 }
 
 void MyHomeBridgeWifi::check() 
-{  
-  if (_isConnected && millis() - _lastCheck > 5000) {
-  //if (_isConnected && millis() - _lastCheck > 60000) { // check every minute
+{
+  if (_isConnected && millis() - _lastCheck > 60000) { // check every minute
     _lastCheck = millis();     
     if (checkPing) _ping();
     if (!isConnected() || (checkUrlCall && !_checkUrlCall())) {
