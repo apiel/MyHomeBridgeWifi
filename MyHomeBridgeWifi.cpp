@@ -1,39 +1,100 @@
 #include "Arduino.h"
 #include "ESP8266WiFi.h"
 #include "ESP8266HTTPClient.h"
+#include "ESP8266Ping.h"
+#include "ESP8266WebServer.h"
+#include "WiFiClient.h"
 #include "MyHomeBridgeWifi.h"
 
-void MyHomeBridgeWifi::init(const char* ssid, const char *passphrase)
+void MyHomeBridgeWifi::initServer(int port)
 {
-    _ssid = ssid;
-    _passphrase = passphrase;
-	_lastCheck = millis();
+  server = * new ESP8266WebServer(port);
 }
 
-void MyHomeBridgeWifi::init(const char* ssid, const char *passphrase, IPAddress local_ip)
+void MyHomeBridgeWifi::_routWifiConfig()
 {
-    IPAddress gateway(192,168,0,1);
+  Serial.println("_routWifiConfig.");
+  server.send(200, "text/html", "\
+  <form>\
+    <label>Wifi SSID</label><br />\
+    <input name='ssid' placeholder='SSID' /><br /><br />\
+    <label>Wifi password</label><br />\
+    <input name='password' placeholder='password' /><br /><br />\
+    <button type='submit'>Save</button><br />\
+  <form>");
+}
+
+void MyHomeBridgeWifi::serve()
+{
+  serve(std::bind(&MyHomeBridgeWifi::_routWifiConfig, this));
+}
+
+void MyHomeBridgeWifi::serve(ESP8266WebServer::THandlerFunction fnNotFound)
+{
+	server.onNotFound(fnNotFound);
+	server.begin();
+	Serial.println("HTTP server started for wifi configuration.");
+}
+
+void MyHomeBridgeWifi::accessPointConfig(const char* ssid, const char *passphrase)
+{
+  _APssid = ssid;
+  _APpassphrase = passphrase;
+}
+
+void MyHomeBridgeWifi::accessPointStart()
+{
+  Serial.println("Start access point");
+	WiFi.softAP(_APssid, _APpassphrase);
+
+	IPAddress myIP = WiFi.softAPIP();
+	Serial.print("AP IP address: ");
+	Serial.println(myIP);  
+}
+
+void MyHomeBridgeWifi::connect(const char* ssid, const char *passphrase)
+{
+  _STAssid = ssid;
+  _STApassphrase = passphrase;
+	_lastCheck = millis();
+  connect();
+}
+
+void MyHomeBridgeWifi::connect(const char* ssid, const char *passphrase, IPAddress local_ip)
+{
+  IPAddress gateway(192,168,0,1);
 	IPAddress subnet(255,255,255,0);	
 	
 	WiFi.config(local_ip, gateway, subnet);
-	init(ssid, passphrase);
+	connect(ssid, passphrase);
 }
 
 void MyHomeBridgeWifi::connect()
 {
   WiFi.disconnect(true);
   Serial.print("Connect to WiFi: ");  
-  Serial.println(_ssid);
-  WiFi.begin(_ssid, _passphrase);  
+  Serial.println(_STAssid);
+  WiFi.begin(_STAssid, _STApassphrase);  
 
-  if (isConnected()) {
-	Serial.print("Connected to wifi: ");
-	Serial.println(WiFi.localIP());	  	  
+  if (_isConnected = isConnected()) {
+	  Serial.print("\n\nConnected to wifi: ");
+	  Serial.println(WiFi.localIP());	  	  
+    Serial.print("GatewayIP: ");
+    Serial.println(WiFi.gatewayIP().toString());
+    Serial.print("mac: ");
+    Serial.println(WiFi.macAddress());   
+    _gatewayIP =  WiFi.gatewayIP();
+  }
+  else {
+    Serial.println("\n\nCan't connect to wifi.");
+    accessPointStart();
+    initServer();
+    serve();
   }
 }
 
 bool MyHomeBridgeWifi::isConnected() {
-  int test = 20;
+  int test = 40;
   while (test && WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");  
@@ -65,7 +126,7 @@ bool MyHomeBridgeWifi::_checkUrlCall() {
   if (millis() - _lastCheck > 60000) { // check every minute
     _lastCheck = millis();
     Serial.print("Call check url: ");
-    int httpCode = callUrl("http://192.168.0.1/");
+    int httpCode = callUrl("http://" + _gatewayIP.toString() + "/");
     Serial.println(httpCode);
     isValid = httpCode == 200;
   }
@@ -73,11 +134,22 @@ bool MyHomeBridgeWifi::_checkUrlCall() {
   return isValid;
 }
 
+bool MyHomeBridgeWifi::_ping() {
+  Serial.println("Ping");
+  return Ping.ping(_gatewayIP);
+}
+
 void MyHomeBridgeWifi::check() {       
-  if (!isConnected() || !_checkUrlCall()) {
-      Serial.println("\nDisconnected from Wifi, reset in 5 sec.");
-      delay(5000);
-      //connectToWifi();
-      ESP.reset();
-  }  
+  if (_isConnected) {
+    if (!isConnected()
+    || (checkUrlCall && !_checkUrlCall())
+    || (checkPing && !_ping())) {
+        Serial.println("\nDisconnected from Wifi, reset in 5 sec.");
+        delay(5000);
+        //connectToWifi();
+        ESP.reset();
+    } 
+  }
+  
+  server.handleClient();
 }
