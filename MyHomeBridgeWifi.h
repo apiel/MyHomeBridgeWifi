@@ -20,6 +20,7 @@ class MyHomeBridgeWifi
 	void accessPointStart();
     void connect(const char* ssid, const char *passphrase);
 	void connect(const char* ssid, const char *passphrase, IPAddress local_ip);
+	void connect(const char* ssid, const char *passphrase, IPAddress local_ip, IPAddress gateway, IPAddress subnet);
     void connect();
 	bool isConnected();
 	int callUrl(String url);

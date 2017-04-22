@@ -48,7 +48,8 @@ void MyHomeBridgeWifi::accessPointConfig(const char* ssid, const char *passphras
 
 void MyHomeBridgeWifi::accessPointStart()
 {
-  Serial.println("Start access point");
+  Serial.print("Start access point: ");
+  Serial.println(_APssid);
 	WiFi.softAP(_APssid, _APpassphrase);
 
 	IPAddress myIP = WiFi.softAPIP();
@@ -66,10 +67,14 @@ void MyHomeBridgeWifi::connect(const char* ssid, const char *passphrase)
 
 void MyHomeBridgeWifi::connect(const char* ssid, const char *passphrase, IPAddress local_ip)
 {
-  IPAddress gateway(192,168,0,1);
-	IPAddress subnet(255,255,255,0);	
-	
-	WiFi.config(local_ip, gateway, subnet);
+  IPAddress gateway(192,168,0,1); 
+  IPAddress subnet(255,255,255,0);
+  connect(ssid, passphrase, local_ip, gateway, subnet);
+}
+
+void MyHomeBridgeWifi::connect(const char* ssid, const char *passphrase, IPAddress local_ip, IPAddress gateway, IPAddress subnet)
+{
+  WiFi.config(local_ip, gateway, subnet);
 	connect(ssid, passphrase);
 }
 
