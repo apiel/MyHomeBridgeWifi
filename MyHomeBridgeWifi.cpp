@@ -82,12 +82,12 @@ void MyHomeBridgeWifi::connect()
 {
   WiFi.disconnect(true);
   WiFi.softAPdisconnect();
-  _isConnected = false;
+  isConnected = false;
   Serial.print("Connect to WiFi: ");  
   Serial.println(_STAssid);
   WiFi.begin(_STAssid, _STApassphrase);  
 
-  if (_isConnected = isConnected()) {
+  if (isConnectionAlive()) {
 	  Serial.print("\n\nConnected to wifi: ");
     Serial.println(WiFi.SSID());
 	  Serial.println(WiFi.localIP());	  	  
@@ -105,14 +105,15 @@ void MyHomeBridgeWifi::connect()
   }
 }
 
-bool MyHomeBridgeWifi::isConnected() {
+bool MyHomeBridgeWifi::isConnectionAlive() {
   int test = 40;
   while (test && WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");  
     test--;
   }
-  return test;
+  isConnected = test;
+  return isConnected;
 }
 
 int MyHomeBridgeWifi::callUrl(String url) {
@@ -160,10 +161,10 @@ void MyHomeBridgeWifi::_ping() {
 
 void MyHomeBridgeWifi::check() 
 {
-  if (_isConnected && millis() - _lastCheck > 60000) { // check every minute
+  if (isConnected && millis() - _lastCheck > 60000) { // check every minute
     _lastCheck = millis();     
     if (checkPing) _ping();
-    if (!isConnected() || (checkUrlCall && !_checkUrlCall())) {
+    if (!isConnectionAlive() || (checkUrlCall && !_checkUrlCall())) {
       MyHomeBridgeWifi::_disconnected();
     } 
   }
